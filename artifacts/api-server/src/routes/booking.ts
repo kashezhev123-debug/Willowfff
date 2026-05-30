@@ -3,7 +3,7 @@ import { Router } from "express";
 const router = Router();
 
 router.post("/booking", async (req, res) => {
-  const { name, phone, zone, date, time, duration, comment } = req.body;
+  const { name, phone, zone, pcCount, date, time, duration, comment } = req.body;
 
   if (!name || !phone || !zone) {
     res.status(400).json({ ok: false, error: "Заполните обязательные поля" });
@@ -31,6 +31,7 @@ router.post("/booking", async (req, res) => {
     `👤 <b>Имя:</b> ${name}`,
     `📞 <b>Телефон:</b> ${phone}`,
     `🕹 <b>Зона:</b> ${zoneLabels[zone] ?? zone}`,
+    pcCount && pcCount > 1 ? `🖥 <b>Количество ПК:</b> ${pcCount}` : null,
     date ? `📅 <b>Дата:</b> ${date}` : null,
     time ? `⏰ <b>Время:</b> ${time}` : null,
     duration ? `⏱ <b>Длительность:</b> ${duration} ч.` : null,

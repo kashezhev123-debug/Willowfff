@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, User, Phone, Monitor, Calendar, Clock, MessageSquare, CheckCircle, Loader2 } from "lucide-react";
+import { X, User, Phone, Monitor, Calendar, Clock, MessageSquare, CheckCircle, Loader2, Minus, Plus } from "lucide-react";
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -8,10 +8,10 @@ interface BookingModalProps {
 }
 
 const zones = [
-  { value: "standard", label: "Стандарт ПК", desc: "18 мест · от 125 ₽/ч" },
-  { value: "vip", label: "VIP ПК", desc: "5 мест · от 180 ₽/ч" },
-  { value: "playstation", label: "PlayStation", desc: "1 место · от 210 ₽/ч" },
-  { value: "vip_playstation", label: "VIP PlayStation", desc: "1 место · 500 ₽/ч" },
+  { value: "standard", label: "Стандарт ПК", desc: "18 мест · от 125 ₽/ч", maxPc: 18 },
+  { value: "vip", label: "VIP ПК", desc: "5 мест · от 180 ₽/ч", maxPc: 5 },
+  { value: "playstation", label: "PlayStation", desc: "1 место · от 210 ₽/ч", maxPc: 0 },
+  { value: "vip_playstation", label: "VIP PlayStation", desc: "1 место · 500 ₽/ч", maxPc: 0 },
 ];
 
 const durations = ["1", "2", "3", "4", "5", "6", "8", "10"];
@@ -21,6 +21,7 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
     name: "",
     phone: "",
     zone: "",
+    pcCount: 1,
     date: "",
     time: "",
     duration: "",
@@ -31,6 +32,26 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
 
   const set = (field: string, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
+
+  const selectedZone = zones.find((z) => z.value === form.zone);
+  const showPcCount = selectedZone && selectedZone.maxPc > 1;
+
+  const handleZoneSelect = (zoneValue: string) => {
+    const z = zones.find((z) => z.value === zoneValue);
+    setForm((prev) => ({ ...prev, zone: zoneValue, pcCount: 1 }));
+    // reset pcCount when switching zones
+    if (z && z.maxPc <= 1) {
+      setForm((prev) => ({ ...prev, zone: zoneValue, pcCount: 1 }));
+    }
+  };
+
+  const adjustPc = (delta: number) => {
+    if (!selectedZone) return;
+    setForm((prev) => ({
+      ...prev,
+      pcCount: Math.min(selectedZone.maxPc, Math.max(1, prev.pcCount + delta)),
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +69,7 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
       const data = await res.json() as { ok: boolean; error?: string };
       if (data.ok) {
         setStatus("success");
-        setForm({ name: "", phone: "", zone: "", date: "", time: "", duration: "", comment: "" });
+        setForm({ name: "", phone: "", zone: "", pcCount: 1, date: "", time: "", duration: "", comment: "" });
       } else {
         setStatus("error");
         setErrorMsg(data.error ?? "Ошибка отправки");
@@ -173,7 +194,7 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
                       <button
                         type="button"
                         key={z.value}
-                        onClick={() => set("zone", z.value)}
+                        onClick={() => handleZoneSelect(z.value)}
                         data-testid={`button-zone-${z.value}`}
                         className={`p-3 rounded-xl border text-left transition-all ${
                           form.zone === z.value
@@ -188,6 +209,73 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
                     ))}
                   </div>
                 </div>
+
+                {/* PC Count — only for standard/vip */}
+                <AnimatePresence>
+                  {showPcCount && (
+                    <motion.div
+                      className="space-y-2"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <Monitor className="w-3.5 h-3.5 text-primary" />
+                        Количество ПК
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          макс. {selectedZone?.maxPc}
+                        </span>
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <button
+                          type="button"
+                          onClick={() => adjustPc(-1)}
+                          disabled={form.pcCount <= 1}
+                          data-testid="button-pc-minus"
+                          className="w-11 h-11 rounded-xl border border-white/10 bg-white/5 flex items-center justify-center text-white hover:border-primary/60 hover:bg-primary/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </button>
+                        <div className="flex-1 text-center">
+                          <span
+                            className="text-3xl font-black text-white"
+                            style={{ textShadow: "0 0 20px rgba(139,92,246,0.6)" }}
+                          >
+                            {form.pcCount}
+                          </span>
+                          <span className="text-muted-foreground text-sm ml-2">
+                            {form.pcCount === 1 ? "место" : form.pcCount < 5 ? "места" : "мест"}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => adjustPc(1)}
+                          disabled={form.pcCount >= (selectedZone?.maxPc ?? 1)}
+                          data-testid="button-pc-plus"
+                          className="w-11 h-11 rounded-xl border border-white/10 bg-white/5 flex items-center justify-center text-white hover:border-primary/60 hover:bg-primary/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {/* Visual bar */}
+                      <div className="flex gap-1 mt-2">
+                        {Array.from({ length: selectedZone?.maxPc ?? 0 }).map((_, i) => (
+                          <div
+                            key={i}
+                            className="h-1.5 flex-1 rounded-full transition-all duration-200"
+                            style={{
+                              background: i < form.pcCount
+                                ? "rgba(139,92,246,0.8)"
+                                : "rgba(255,255,255,0.08)",
+                              boxShadow: i < form.pcCount ? "0 0 6px rgba(139,92,246,0.5)" : "none",
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {/* Date & Time */}
                 <div className="grid grid-cols-2 gap-3">
