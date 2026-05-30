@@ -1,0 +1,38 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "Kim1SKmKfZ3qd6F1tEg8O"
+uri = "file://artifacts/willow/public/gallery/1.png"
+type = "image"
+title = "Dark gaming room purple PCs"
+
+[[generated]]
+id = "jDWCoRNq2BoHlR_vBwfYN"
+uri = "file://artifacts/willow/public/gallery/2.png"
+type = "image"
+title = "VIP gaming chairs neon"
+
+[[generated]]
+id = "qa_e2bRvklJpwBr3hIfra"
+uri = "file://artifacts/willow/public/gallery/3.png"
+type = "image"
+title = "Gaming keyboard purple backlight"
+
+[[generated]]
+id = "oZJwYPmYH8qTdqUnmDPR9"
+uri = "file://artifacts/willow/public/gallery/4.png"
+type = "image"
+title = "Gaming monitors neon glow"
+
+[[generated]]
+id = "MM_UgF3qoQSUyrdOID1JN"
+uri = "file://artifacts/willow/public/gallery/5.png"
+type = "image"
+title = "Sleek gaming lounge night"
+
+[[generated]]
+id = "dNOHRum5htIg7nMlXT5vm"
+uri = "file://artifacts/willow/public/gallery/6.png"
+type = "image"
+title = "Esports arena purple ambient"
