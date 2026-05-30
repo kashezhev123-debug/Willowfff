@@ -10,12 +10,14 @@ import {
 } from "react-icons/si";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import BookingModal from "@/components/BookingModal";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("standard");
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -135,7 +137,8 @@ export default function Home() {
             <Button 
               size="lg" 
               className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg rounded-xl neon-glow w-full sm:w-auto"
-              onClick={() => window.location.href = "tel:89287097705"}
+              onClick={() => setIsBookingOpen(true)}
+              data-testid="button-open-booking"
             >
               Забронировать
             </Button>
@@ -623,6 +626,9 @@ export default function Home() {
       >
         <SiTelegram className="w-6 h-6 ml-[-2px]" />
       </motion.a>
+
+      {/* Booking Modal */}
+      <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
 
     </div>
   );
