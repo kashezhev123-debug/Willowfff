@@ -22,8 +22,8 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
     name: "",
     phone: "",
     telegram: "",
-    zone: "",
-    pcNumbers: [] as number[],
+    zones: [] as string[],
+    pcsByZone: {} as Record<string, number[]>,
     date: "",
     time: "",
     duration: "",
@@ -35,16 +35,33 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
   const set = (field: string, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
-  const selectedZone = zones.find((z) => z.value === form.zone);
-  const showPcGrid = selectedZone && selectedZone.maxPc > 0;
-
-  const handleZoneSelect = (zoneValue: string) => {
-    setForm((prev) => ({ ...prev, zone: zoneValue, pcNumbers: [] }));
+  const toggleZone = (zoneValue: string) => {
+    setForm((prev) => {
+      const already = prev.zones.includes(zoneValue);
+      const newZones = already
+        ? prev.zones.filter((z) => z !== zoneValue)
+        : [...prev.zones, zoneValue];
+      // Remove PC selection if zone is deselected
+      const newPcsByZone = { ...prev.pcsByZone };
+      if (already) delete newPcsByZone[zoneValue];
+      return { ...prev, zones: newZones, pcsByZone: newPcsByZone };
+    });
   };
+
+  const setPcsForZone = (zone: string, pcs: number[]) => {
+    setForm((prev) => ({
+      ...prev,
+      pcsByZone: { ...prev.pcsByZone, [zone]: pcs },
+    }));
+  };
+
+  const zonesWithPcGrid = zones.filter(
+    (z) => z.maxPc > 0 && form.zones.includes(z.value)
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.phone || !form.zone) return;
+    if (!form.name || !form.phone || form.zones.length === 0) return;
 
     setStatus("loading");
     setErrorMsg("");
@@ -58,7 +75,7 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
       const data = await res.json() as { ok: boolean; error?: string };
       if (data.ok) {
         setStatus("success");
-        setForm({ name: "", phone: "", telegram: "", zone: "", pcNumbers: [], date: "", time: "", duration: "", comment: "" });
+        setForm({ name: "", phone: "", telegram: "", zones: [], pcsByZone: {}, date: "", time: "", duration: "", comment: "" });
       } else {
         setStatus("error");
         setErrorMsg(data.error ?? "Ошибка отправки");
@@ -83,7 +100,6 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          {/* Backdrop */}
           <motion.div
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             onClick={handleClose}
@@ -92,7 +108,6 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
             exit={{ opacity: 0 }}
           />
 
-          {/* Modal */}
           <motion.div
             className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-primary/30 bg-[#0d0d18]"
             style={{ boxShadow: "0 0 60px rgba(139,92,246,0.2), 0 0 120px rgba(139,92,246,0.05)" }}
@@ -118,7 +133,7 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
               </button>
             </div>
 
-            {/* Success State */}
+            {/* Success */}
             {status === "success" ? (
               <motion.div
                 className="p-10 flex flex-col items-center text-center gap-4"
@@ -157,7 +172,7 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
                   />
                 </div>
 
-                {/* Phone + Telegram row */}
+                {/* Phone + Telegram */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -191,29 +206,41 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
                   </div>
                 </div>
 
-                {/* Zone */}
+                {/* Zones — multi-select */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Monitor className="w-3.5 h-3.5 text-primary" /> Зона <span className="text-primary">*</span>
+                    <Monitor className="w-3.5 h-3.5 text-primary" /> Зона
+                    <span className="text-primary">*</span>
+                    <span className="text-xs text-muted-foreground ml-auto">Можно несколько</span>
                   </label>
                   <div className="grid grid-cols-2 gap-2">
-                    {zones.map((z) => (
-                      <button
-                        type="button"
-                        key={z.value}
-                        onClick={() => handleZoneSelect(z.value)}
-                        data-testid={`button-zone-${z.value}`}
-                        className={`p-3 rounded-xl border text-left transition-all ${
-                          form.zone === z.value
-                            ? "border-primary bg-primary/15 text-white"
-                            : "border-white/10 bg-white/3 text-muted-foreground hover:border-primary/40"
-                        }`}
-                        style={form.zone === z.value ? { boxShadow: "0 0 20px rgba(139,92,246,0.2)" } : {}}
-                      >
-                        <div className="font-semibold text-sm">{z.label}</div>
-                        <div className="text-xs opacity-70 mt-0.5">{z.desc}</div>
-                      </button>
-                    ))}
+                    {zones.map((z) => {
+                      const active = form.zones.includes(z.value);
+                      return (
+                        <button
+                          type="button"
+                          key={z.value}
+                          onClick={() => toggleZone(z.value)}
+                          data-testid={`button-zone-${z.value}`}
+                          className={`p-3 rounded-xl border text-left transition-all ${
+                            active
+                              ? "border-primary bg-primary/15 text-white"
+                              : "border-white/10 bg-white/3 text-muted-foreground hover:border-primary/40"
+                          }`}
+                          style={active ? { boxShadow: "0 0 20px rgba(139,92,246,0.2)" } : {}}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-sm">{z.label}</span>
+                            {active && (
+                              <span className="w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                                <span className="text-white text-[10px] font-bold">✓</span>
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs opacity-70 mt-0.5">{z.desc}</div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -246,10 +273,11 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
                   </div>
                 </div>
 
-                {/* PC Grid */}
+                {/* PC Grids — one per zone that has PCs */}
                 <AnimatePresence>
-                  {showPcGrid && (
+                  {zonesWithPcGrid.map((z) => (
                     <motion.div
+                      key={z.value}
                       className="space-y-2"
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
@@ -259,24 +287,24 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
                       <label className="text-sm font-medium text-muted-foreground flex items-center justify-between">
                         <span className="flex items-center gap-2">
                           <Monitor className="w-3.5 h-3.5 text-primary" />
-                          Выберите место
+                          {z.label} — выберите место
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {form.pcNumbers.length > 0
-                            ? `Выбрано: ${form.pcNumbers.length}`
+                          {(form.pcsByZone[z.value] ?? []).length > 0
+                            ? `Выбрано: ${(form.pcsByZone[z.value] ?? []).length}`
                             : "Можно несколько"}
                         </span>
                       </label>
                       <PcGrid
-                        zone={form.zone}
-                        maxPcs={selectedZone.maxPc}
+                        zone={z.value}
+                        maxPcs={z.maxPc}
                         date={form.date}
                         time={form.time}
-                        selected={form.pcNumbers}
-                        onSelect={(pcs) => setForm((prev) => ({ ...prev, pcNumbers: pcs }))}
+                        selected={form.pcsByZone[z.value] ?? []}
+                        onSelect={(pcs) => setPcsForZone(z.value, pcs)}
                       />
                     </motion.div>
-                  )}
+                  ))}
                 </AnimatePresence>
 
                 {/* Duration */}
@@ -316,17 +344,15 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
                   />
                 </div>
 
-                {/* Error */}
                 {status === "error" && (
                   <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 px-4 py-2 rounded-lg">
                     {errorMsg}
                   </p>
                 )}
 
-                {/* Submit */}
                 <button
                   type="submit"
-                  disabled={status === "loading" || !form.name || !form.phone || !form.zone}
+                  disabled={status === "loading" || !form.name || !form.phone || form.zones.length === 0}
                   data-testid="button-submit-booking"
                   className="w-full py-4 rounded-xl font-bold text-white bg-primary hover:bg-primary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                   style={{ boxShadow: "0 0 30px rgba(139,92,246,0.4)" }}

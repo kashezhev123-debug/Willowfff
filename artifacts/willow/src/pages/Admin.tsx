@@ -3,15 +3,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LogIn, RefreshCw, CheckCircle, XCircle, Clock,
   Trash2, Phone, User, Monitor, Calendar, MessageSquare,
-  LogOut, Shield
+  LogOut, Shield, Send
 } from "lucide-react";
 
 interface Booking {
   id: number;
   name: string;
   phone: string;
+  telegram: string | null;
   zone: string;
-  pcNumbers: number[];
+  zones: string[] | null;
+  pcNumbers: number[] | null;
+  pcsByZone: Record<string, number[]> | null;
   date: string | null;
   time: string | null;
   duration: number | null;
@@ -32,6 +35,47 @@ const statusConfig = {
   confirmed: { label: "Подтверждён", color: "text-green-400",  bg: "bg-green-400/10 border-green-400/30" },
   cancelled: { label: "Отменён",     color: "text-red-400",    bg: "bg-red-400/10 border-red-400/30" },
 };
+
+function ZoneDisplay({ booking }: { booking: Booking }) {
+  // New format: zones array + pcsByZone object
+  if (booking.zones && booking.zones.length > 0) {
+    return (
+      <div className="space-y-1">
+        {booking.zones.map((z) => {
+          const pcs = booking.pcsByZone?.[z] ?? [];
+          return (
+            <div key={z} className="flex items-start gap-1.5 text-muted-foreground text-sm">
+              <Monitor className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+              <span>
+                {zoneLabels[z] ?? z}
+                {pcs.length > 0 && (
+                  <span className="text-primary/70 ml-1">
+                    · ПК №{pcs.sort((a, b) => a - b).join(", №")}
+                  </span>
+                )}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+  // Old format: single zone + flat pcNumbers
+  const pcs = booking.pcNumbers ?? [];
+  return (
+    <div className="flex items-start gap-1.5 text-muted-foreground text-sm">
+      <Monitor className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+      <span>
+        {zoneLabels[booking.zone] ?? booking.zone}
+        {pcs.length > 0 && (
+          <span className="text-primary/70 ml-1">
+            · ПК №{[...pcs].sort((a, b) => a - b).join(", №")}
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
 
 export default function Admin() {
   const [token, setToken] = useState(() => localStorage.getItem("admin_token") ?? "");
@@ -137,7 +181,6 @@ export default function Admin() {
     cancelled: bookings.filter((b) => b.status === "cancelled").length,
   };
 
-  // Login screen
   if (!token) {
     return (
       <div className="min-h-screen bg-[#050508] flex items-center justify-center p-4">
@@ -191,10 +234,8 @@ export default function Admin() {
     );
   }
 
-  // Admin dashboard
   return (
     <div className="min-h-screen bg-[#050508] text-white">
-      {/* Header */}
       <div className="border-b border-white/5 bg-[#0d0d18]/80 backdrop-blur-md sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -224,7 +265,6 @@ export default function Admin() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {(["all", "pending", "confirmed", "cancelled"] as const).map((f) => (
             <button
@@ -244,7 +284,6 @@ export default function Admin() {
           ))}
         </div>
 
-        {/* Bookings list */}
         {loading && bookings.length === 0 ? (
           <div className="text-center py-20 text-muted-foreground">Загружаем...</div>
         ) : filtered.length === 0 ? (
@@ -267,8 +306,7 @@ export default function Admin() {
                     className="rounded-xl border border-white/10 bg-[#0d0d18] p-5"
                   >
                     <div className="flex flex-col md:flex-row md:items-start gap-4">
-                      {/* Left: info */}
-                      <div className="flex-1 space-y-2">
+                      <div className="flex-1 space-y-3">
                         <div className="flex items-center gap-3 flex-wrap">
                           <span className="text-white font-bold text-lg">{booking.name}</span>
                           <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${sc.bg} ${sc.color}`}>
@@ -279,35 +317,46 @@ export default function Admin() {
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-                          <span className="flex items-center gap-1.5 text-muted-foreground">
-                            <Phone className="w-3.5 h-3.5 text-primary" />
-                            {booking.phone}
-                          </span>
-                          <span className="flex items-center gap-1.5 text-muted-foreground">
-                            <Monitor className="w-3.5 h-3.5 text-primary" />
-                            {zoneLabels[booking.zone] ?? booking.zone}
-                          </span>
-                          {booking.pcNumbers && booking.pcNumbers.length > 0 && (
+                        <div className="space-y-1.5 text-sm">
+                          {/* Phone + Telegram */}
+                          <div className="flex flex-wrap gap-x-4 gap-y-1">
                             <span className="flex items-center gap-1.5 text-muted-foreground">
-                              <Monitor className="w-3.5 h-3.5 text-primary/60" />
-                              ПК №{(booking.pcNumbers as number[]).sort((a, b) => a - b).join(", №")}
+                              <Phone className="w-3.5 h-3.5 text-primary" />
+                              {booking.phone}
                             </span>
-                          )}
-                          {booking.date && (
-                            <span className="flex items-center gap-1.5 text-muted-foreground">
-                              <Calendar className="w-3.5 h-3.5 text-primary" />
-                              {booking.date}{booking.time ? ` в ${booking.time}` : ""}
-                            </span>
-                          )}
-                          {booking.duration && (
-                            <span className="flex items-center gap-1.5 text-muted-foreground">
-                              <Clock className="w-3.5 h-3.5 text-primary" />
-                              {booking.duration} ч.
-                            </span>
-                          )}
+                            {booking.telegram && (
+                              <a
+                                href={`https://t.me/${booking.telegram}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 text-primary/80 hover:text-primary transition-colors"
+                              >
+                                <Send className="w-3.5 h-3.5" />
+                                @{booking.telegram}
+                              </a>
+                            )}
+                          </div>
+
+                          {/* Zones */}
+                          <ZoneDisplay booking={booking} />
+
+                          {/* Date / duration / comment */}
+                          <div className="flex flex-wrap gap-x-4 gap-y-1">
+                            {booking.date && (
+                              <span className="flex items-center gap-1.5 text-muted-foreground">
+                                <Calendar className="w-3.5 h-3.5 text-primary" />
+                                {booking.date}{booking.time ? ` в ${booking.time}` : ""}
+                              </span>
+                            )}
+                            {booking.duration && (
+                              <span className="flex items-center gap-1.5 text-muted-foreground">
+                                <Clock className="w-3.5 h-3.5 text-primary" />
+                                {booking.duration} ч.
+                              </span>
+                            )}
+                          </div>
                           {booking.comment && (
-                            <span className="flex items-center gap-1.5 text-muted-foreground col-span-2">
+                            <span className="flex items-center gap-1.5 text-muted-foreground">
                               <MessageSquare className="w-3.5 h-3.5 text-primary shrink-0" />
                               {booking.comment}
                             </span>
@@ -315,7 +364,6 @@ export default function Admin() {
                         </div>
                       </div>
 
-                      {/* Right: actions */}
                       <div className="flex md:flex-col gap-2 shrink-0">
                         {booking.status !== "confirmed" && (
                           <button

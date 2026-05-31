@@ -4,6 +4,13 @@ import { eq, desc } from "drizzle-orm";
 
 const router = Router();
 
+const zoneLabels: Record<string, string> = {
+  standard: "Стандарт ПК",
+  vip: "VIP ПК",
+  playstation: "PlayStation",
+  vip_playstation: "VIP PlayStation",
+};
+
 const checkAuth = (req: any, res: any): boolean => {
   const auth = req.headers["authorization"] ?? "";
   const token = auth.replace("Bearer ", "");
@@ -15,13 +22,6 @@ const checkAuth = (req: any, res: any): boolean => {
   return true;
 };
 
-const zoneLabels: Record<string, string> = {
-  standard: "Стандарт ПК",
-  vip: "VIP ПК",
-  playstation: "PlayStation",
-  vip_playstation: "VIP PlayStation",
-};
-
 async function sendTelegram(text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -31,6 +31,24 @@ async function sendTelegram(text: string) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
   }).catch(() => {});
+}
+
+function buildZonesLine(booking: any): string {
+  const zones: string[] = booking.zones ?? [booking.zone];
+  const pcsByZone: Record<string, number[]> = booking.pcsByZone ?? {};
+  const oldPcs: number[] = booking.pcNumbers ?? [];
+
+  return zones.map((z: string) => {
+    const label = zoneLabels[z] ?? z;
+    const pcs = pcsByZone[z]
+      ? [...pcsByZone[z]].sort((a, b) => a - b)
+      : zones.length === 1 && oldPcs.length > 0
+        ? [...oldPcs].sort((a, b) => a - b)
+        : [];
+    return pcs.length > 0
+      ? `${label} · ПК №${pcs.join(", №")}`
+      : label;
+  }).join("\n     ");
 }
 
 // POST /api/admin/login
@@ -73,7 +91,6 @@ router.patch("/admin/bookings/:id", async (req, res) => {
     return;
   }
   try {
-    // Fetch booking for notification
     const [booking] = await db
       .select()
       .from(bookingsTable)
@@ -84,36 +101,24 @@ router.patch("/admin/bookings/:id", async (req, res) => {
       .set({ status })
       .where(eq(bookingsTable.id, Number(id)));
 
-    // Send Telegram notification
     if (booking) {
-      const pcs = (booking.pcNumbers as number[] | null) ?? [];
-      const pcsLine = pcs.length > 0
-        ? `\n🖥 <b>Места:</b> ПК №${pcs.sort((a, b) => a - b).join(", №")}`
-        : "";
-
+      const zonesLine = buildZonesLine(booking);
       const dateLine = booking.date
         ? `\n📅 ${booking.date}${booking.time ? ` в ${booking.time}` : ""}`
         : "";
 
-      if (status === "confirmed") {
-        await sendTelegram(
-          `✅ <b>Бронирование #${booking.id} подтверждено</b>\n\n` +
-          `👤 ${booking.name}\n` +
-          `📞 ${booking.phone}\n` +
-          `🕹 ${zoneLabels[booking.zone] ?? booking.zone}` +
-          pcsLine +
-          dateLine
-        );
-      } else if (status === "cancelled") {
-        await sendTelegram(
-          `❌ <b>Бронирование #${booking.id} отменено</b>\n\n` +
-          `👤 ${booking.name}\n` +
-          `📞 ${booking.phone}\n` +
-          `🕹 ${zoneLabels[booking.zone] ?? booking.zone}` +
-          pcsLine +
-          dateLine
-        );
-      }
+      const header = status === "confirmed"
+        ? `✅ <b>Бронирование #${booking.id} подтверждено</b>`
+        : `❌ <b>Бронирование #${booking.id} отменено</b>`;
+
+      await sendTelegram(
+        `${header}\n\n` +
+        `👤 ${booking.name}\n` +
+        `📞 ${booking.phone}\n` +
+        (booking.telegram ? `✈️ @${booking.telegram}\n` : "") +
+        `🕹 ${zonesLine}` +
+        dateLine
+      );
     }
 
     res.json({ ok: true });
