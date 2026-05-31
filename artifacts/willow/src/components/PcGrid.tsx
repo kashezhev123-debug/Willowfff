@@ -51,6 +51,19 @@ export default function PcGrid({ zone, maxPcs, date, time, selected, onSelect }:
     }
   };
 
+  const freePcs = Array.from({ length: maxPcs }, (_, i) => i + 1).filter(
+    (n) => !bookedPcs.includes(n)
+  );
+  const allFreeSelected = freePcs.length > 0 && freePcs.every((n) => selected.includes(n));
+
+  const toggleSelectAll = () => {
+    if (allFreeSelected) {
+      onSelect([]);
+    } else {
+      onSelect(freePcs);
+    }
+  };
+
   const cols = maxPcs <= 5 ? maxPcs : 6;
 
   return (
@@ -60,6 +73,22 @@ export default function PcGrid({ zone, maxPcs, date, time, selected, onSelect }:
           <Loader2 className="w-3 h-3 animate-spin" />
           Загружаем статус мест...
         </div>
+      )}
+
+      {/* Select All button */}
+      {!loading && freePcs.length > 1 && (
+        <button
+          type="button"
+          onClick={toggleSelectAll}
+          className={`w-full py-2 rounded-xl text-xs font-semibold border transition-all ${
+            allFreeSelected
+              ? "border-primary bg-primary/20 text-white"
+              : "border-white/10 bg-white/5 text-muted-foreground hover:border-primary/40 hover:text-white"
+          }`}
+          style={allFreeSelected ? { boxShadow: "0 0 16px rgba(139,92,246,0.25)" } : {}}
+        >
+          {allFreeSelected ? "Снять выбор со всех" : `Выбрать все свободные (${freePcs.length})`}
+        </button>
       )}
 
       <div

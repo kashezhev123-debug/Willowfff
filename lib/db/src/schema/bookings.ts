@@ -6,6 +6,7 @@ export const bookingsTable = pgTable("bookings", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   phone: text("phone").notNull(),
+  telegram: text("telegram"),
   zone: text("zone").notNull(),
   pcNumbers: jsonb("pc_numbers").$type<number[]>().default([]),
   date: text("date"),

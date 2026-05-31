@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, User, Phone, Monitor, Calendar, Clock, MessageSquare, CheckCircle, Loader2 } from "lucide-react";
+import { X, User, Phone, Monitor, Calendar, Clock, MessageSquare, CheckCircle, Loader2, Send } from "lucide-react";
 import PcGrid from "./PcGrid";
 
 interface BookingModalProps {
@@ -21,6 +21,7 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
   const [form, setForm] = useState({
     name: "",
     phone: "",
+    telegram: "",
     zone: "",
     pcNumbers: [] as number[],
     date: "",
@@ -57,7 +58,7 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
       const data = await res.json() as { ok: boolean; error?: string };
       if (data.ok) {
         setStatus("success");
-        setForm({ name: "", phone: "", zone: "", pcNumbers: [], date: "", time: "", duration: "", comment: "" });
+        setForm({ name: "", phone: "", telegram: "", zone: "", pcNumbers: [], date: "", time: "", duration: "", comment: "" });
       } else {
         setStatus("error");
         setErrorMsg(data.error ?? "Ошибка отправки");
@@ -156,20 +157,38 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
                   />
                 </div>
 
-                {/* Phone */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Phone className="w-3.5 h-3.5 text-primary" /> Телефон <span className="text-primary">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={form.phone}
-                    onChange={(e) => set("phone", e.target.value)}
-                    placeholder="+7 (___) ___-__-__"
-                    data-testid="input-phone"
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary/60 focus:bg-primary/5 transition-all"
-                  />
+                {/* Phone + Telegram row */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <Phone className="w-3.5 h-3.5 text-primary" /> Телефон <span className="text-primary">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={form.phone}
+                      onChange={(e) => set("phone", e.target.value)}
+                      placeholder="+7 (___) ___-__-__"
+                      data-testid="input-phone"
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary/60 focus:bg-primary/5 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <Send className="w-3.5 h-3.5 text-primary" /> Telegram
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm select-none">@</span>
+                      <input
+                        type="text"
+                        value={form.telegram}
+                        onChange={(e) => set("telegram", e.target.value.replace(/^@/, ""))}
+                        placeholder="username"
+                        data-testid="input-telegram"
+                        className="w-full pl-7 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary/60 focus:bg-primary/5 transition-all"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Zone */}
@@ -198,7 +217,7 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
                   </div>
                 </div>
 
-                {/* Date & Time — shown before PC grid so status loads correctly */}
+                {/* Date & Time */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -227,7 +246,7 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
                   </div>
                 </div>
 
-                {/* PC Grid — only for standard/vip */}
+                {/* PC Grid */}
                 <AnimatePresence>
                   {showPcGrid && (
                     <motion.div

@@ -3,8 +3,15 @@ import { db, bookingsTable } from "@workspace/db";
 
 const router = Router();
 
+const zoneLabels: Record<string, string> = {
+  standard: "🖥 Стандарт ПК · от 125 ₽/ч",
+  vip: "👑 VIP ПК · от 180 ₽/ч",
+  playstation: "🎮 PlayStation · от 210 ₽/ч",
+  vip_playstation: "🏆 VIP PlayStation · 500 ₽/ч",
+};
+
 router.post("/booking", async (req, res) => {
-  const { name, phone, zone, pcNumbers, date, time, duration, comment } = req.body;
+  const { name, phone, telegram, zone, pcNumbers, date, time, duration, comment } = req.body;
 
   if (!name || !phone || !zone) {
     res.status(400).json({ ok: false, error: "Заполните обязательные поля" });
@@ -19,25 +26,13 @@ router.post("/booking", async (req, res) => {
     return;
   }
 
-  const zoneLabels: Record<string, string> = {
-    standard: "🖥 Стандарт (18 ПК)",
-    vip: "👑 VIP ПК (5 мест)",
-    playstation: "🎮 PlayStation",
-    vip_playstation: "🏆 VIP PlayStation",
-  };
-
-  const pcsText =
-    pcNumbers && pcNumbers.length > 0
-      ? `🖥 <b>Места:</b> ПК №${(pcNumbers as number[]).sort((a, b) => a - b).join(", №")}`
-      : null;
-
   const text = [
     "🎮 <b>Новая заявка — WILLOW Gaming Club</b>",
     "",
     `👤 <b>Имя:</b> ${name}`,
     `📞 <b>Телефон:</b> ${phone}`,
-    `🕹 <b>Зона:</b> ${zoneLabels[zone] ?? zone}`,
-    pcsText,
+    telegram ? `✈️ <b>Telegram:</b> @${telegram}` : null,
+    `🕹 <b>Тариф:</b> ${zoneLabels[zone] ?? zone}`,
     date ? `📅 <b>Дата:</b> ${date}` : null,
     time ? `⏰ <b>Время:</b> ${time}` : null,
     duration ? `⏱ <b>Длительность:</b> ${duration} ч.` : null,
@@ -51,6 +46,7 @@ router.post("/booking", async (req, res) => {
     await db.insert(bookingsTable).values({
       name,
       phone,
+      telegram: telegram ?? null,
       zone,
       pcNumbers: pcNumbers ?? [],
       date: date ?? null,
