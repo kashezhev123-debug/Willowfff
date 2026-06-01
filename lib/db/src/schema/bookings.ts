@@ -16,6 +16,7 @@ export const bookingsTable = pgTable("bookings", {
   duration: integer("duration"),
   comment: text("comment"),
   status: text("status").notNull().default("pending"),
+  reminderSent: text("reminder_sent").default("false"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { db, bookingsTable } from "@workspace/db";
+import { eq, inArray } from "drizzle-orm";
 
 const router = Router();
 
@@ -10,13 +11,7 @@ const zoneLabels: Record<string, string> = {
   vip_playstation: "🏆 VIP PlayStation · 500 ₽/ч",
 };
 
-const zoneShort: Record<string, string> = {
-  standard: "Стандарт ПК",
-  vip: "VIP ПК",
-  playstation: "PlayStation",
-  vip_playstation: "VIP PlayStation",
-};
-
+// POST /api/booking — submit new booking
 router.post("/booking", async (req, res) => {
   const { name, phone, telegram, zones, pcsByZone, date, time, duration, comment } = req.body as {
     name: string;
@@ -43,14 +38,10 @@ router.post("/booking", async (req, res) => {
     return;
   }
 
-  // Build zones block for message
   const zonesBlock = zones.map((z) => {
     const label = zoneLabels[z] ?? z;
     const pcs = (pcsByZone?.[z] ?? []).sort((a, b) => a - b);
-    if (pcs.length > 0) {
-      return `${label}\n     ПК №${pcs.join(", №")}`;
-    }
-    return label;
+    return pcs.length > 0 ? `${label}\n     ПК №${pcs.join(", №")}` : label;
   }).join("\n");
 
   const text = [
@@ -66,17 +57,13 @@ router.post("/booking", async (req, res) => {
     time ? `⏰ <b>Время:</b> ${time}` : null,
     duration ? `⏱ <b>Длительность:</b> ${duration} ч.` : null,
     comment ? `💬 <b>Комментарий:</b> ${comment}` : null,
-  ]
-    .filter((l) => l !== null)
-    .join("\n");
+  ].filter((l) => l !== null).join("\n");
 
   try {
     await db.insert(bookingsTable).values({
-      name,
-      phone,
+      name, phone,
       telegram: telegram ?? null,
-      zone: zones[0],
-      zones,
+      zone: zones[0], zones,
       pcNumbers: [],
       pcsByZone: pcsByZone ?? {},
       date: date ?? null,
@@ -84,6 +71,7 @@ router.post("/booking", async (req, res) => {
       duration: duration ? Number(duration) : null,
       comment: comment ?? null,
       status: "pending",
+      reminderSent: "false",
     });
 
     const response = await fetch(
@@ -108,5 +96,22 @@ router.post("/booking", async (req, res) => {
   }
 });
 
-export { zoneShort };
+// GET /api/booking/status?phone=xxx — check booking status by phone
+router.get("/booking/status", async (req, res) => {
+  const { phone } = req.query as { phone?: string };
+  if (!phone) {
+    res.status(400).json({ ok: false, error: "phone required" });
+    return;
+  }
+  try {
+    const bookings = await db
+      .select()
+      .from(bookingsTable)
+      .where(eq(bookingsTable.phone, phone));
+    res.json({ ok: true, bookings });
+  } catch {
+    res.status(500).json({ ok: false, error: "Database error" });
+  }
+});
+
 export default router;
